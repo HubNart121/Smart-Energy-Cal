@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Energy Calc - Full Export</title>
+    <title>Smart Energy Calc - Fixed & Full Export</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -11,26 +11,41 @@
         body { font-family: 'Kanit', sans-serif; background-color: #f1f5f9; }
         .card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
         .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6; background-color: #eff6ff; }
-        input[type="number"], input[type="text"] { outline: none; border-radius: 0.5rem; transition: all 0.2s; }
-        input:focus { background-color: white; box-shadow: 0 0 0 2px #3b82f6; }
+        
+        /* แก้ไขปัญหาตัวเลขหาย: กำหนดสีพื้นหลังและสีตัวอักษรให้แน่นอน */
+        .rate-input {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+            border-bottom: 2px solid #3b82f6;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        .rate-input:focus {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+            outline: none;
+            border-bottom-color: white;
+        }
+
+        input[type="number"], input[type="text"] { border-radius: 0.5rem; transition: all 0.2s; }
         .btn-download { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); }
         
-        /* สไตล์พิเศษสำหรับตอน Export รูปภาพ */
+        /* พื้นที่สำหรับ Export รูปภาพ (ซ่อนไว้จากหน้าจอปกติ) */
         #export-container { 
             position: absolute; 
             left: -9999px; 
             top: 0; 
-            width: 500px; /* กำหนดความกว้างคงที่สำหรับรูปภาพ */
+            width: 500px; 
             background: white;
-            padding: 24px;
+            padding: 30px;
         }
     </style>
 </head>
 <body class="min-h-screen py-8 px-4">
     <div class="max-w-md mx-auto">
+        <!-- Header -->
         <div class="flex flex-col items-center mb-8 text-center">
-            <h1 class="text-3xl font-black text-slate-900 tracking-tight">Smart Energy Calc</h1>
-            <p class="text-slate-500 text-sm">จัดการค่าไฟบ้านและรถ EV ในที่เดียว</p>
+            <h1 class="text-3xl font-black text-slate-900 tracking-tight italic">SMART ENERGY CALC</h1>
+            <p class="text-slate-500 text-sm">จัดการค่าไฟบ้านและรถ EV ให้แม่นยำ</p>
             <button onclick="generateImage()" class="mt-5 btn-download text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg active:scale-95 transition-transform">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 บันทึกรีพอร์ตเป็นรูปภาพ
@@ -38,102 +53,116 @@
         </div>
 
         <div class="card overflow-hidden border border-slate-200">
+            <!-- Navigation -->
             <div class="flex border-b">
                 <button onclick="switchTab('house')" id="tab-house" class="flex-1 py-4 font-bold text-slate-400">🏠 ไฟบ้าน</button>
                 <button onclick="switchTab('ev')" id="tab-ev" class="flex-1 py-4 font-bold tab-active">🚗 รถ EV</button>
             </div>
 
+            <!-- อัตราค่าไฟฟ้า Section -->
             <div class="p-6 bg-slate-900 text-white">
-                <p class="text-[10px] uppercase font-bold text-slate-400 mb-1">อัตราค่าไฟฟ้า (บาท/หน่วย)</p>
-                <input type="number" id="global-rate" value="4.2" step="0.1" oninput="calculateAll()" class="bg-transparent text-4xl font-black w-full border-b border-slate-700 focus:border-blue-500">
+                <p class="text-[10px] uppercase font-bold text-blue-400 mb-2 tracking-widest">อัตราค่าไฟฟ้า (บาท/หน่วย)</p>
+                <div class="relative">
+                    <input type="number" id="global-rate" value="4.2" step="0.1" oninput="calculateAll()" 
+                           class="rate-input text-4xl font-black w-full py-2 px-3 rounded-t-lg">
+                </div>
             </div>
 
+            <!-- EV Content -->
             <div id="content-ev" class="p-6 space-y-5">
                 <div class="grid grid-cols-1 gap-4">
-                    <div class="bg-slate-50 p-4 rounded-2xl border">
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">หน่วยสิ้นเปลือง</label>
-                        <select id="ev-unit-type" onchange="calculateAll()" class="w-full bg-white border rounded-lg p-2 font-bold text-sm text-blue-600">
-                            <option value="kwh_per_100km">kWh / 100km (จากรถ)</option>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">หน่วยการสิ้นเปลือง</label>
+                        <select id="ev-unit-type" onchange="calculateAll()" class="w-full bg-white border rounded-xl p-3 font-bold text-sm text-blue-600 shadow-sm outline-none">
+                            <option value="kwh_per_100km">kWh / 100km (จากหน้าจอรถ)</option>
                             <option value="km_per_kwh">km / kWh (กม./หน่วย)</option>
                             <option value="kwh_per_km">kWh / km (หน่วย/กม.)</option>
                         </select>
-                        <input type="number" id="ev-efficiency" value="13.5" step="0.1" oninput="calculateAll()" class="mt-2 w-full text-2xl font-black bg-transparent">
+                        <input type="number" id="ev-efficiency" value="13.5" step="0.1" oninput="calculateAll()" class="mt-3 w-full text-3xl font-black bg-transparent border-b border-dashed border-slate-300 py-1">
                     </div>
-                    <div class="bg-slate-50 p-4 rounded-2xl border">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                         <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">ระยะทางที่ใช้ต่อวัน (กม.)</label>
-                        <input type="number" id="ev-distance" value="50" oninput="calculateAll()" class="w-full text-2xl font-black bg-transparent">
+                        <input type="number" id="ev-distance" value="50" oninput="calculateAll()" class="w-full text-3xl font-black bg-transparent">
                     </div>
                 </div>
-                <div class="bg-blue-600 text-white p-6 rounded-3xl shadow-xl shadow-blue-100">
+
+                <!-- EV Result Card -->
+                <div class="bg-blue-600 text-white p-6 rounded-[2rem] shadow-xl shadow-blue-200">
                     <p class="text-blue-100 text-[10px] font-bold uppercase text-center mb-1">ต้นทุนพลังงานต่อกิโลเมตร</p>
-                    <p class="text-5xl font-black text-center">฿<span id="ev-cost-km">0.00</span></p>
-                    <div class="grid grid-cols-2 mt-6 pt-4 border-t border-blue-400 text-center">
-                        <div><p class="text-[9px] opacity-70">ต่อวัน</p><p class="font-bold">฿<span id="ev-cost-day">0</span></p></div>
-                        <div><p class="text-[9px] opacity-70">ต่อเดือน</p><p class="font-bold">฿<span id="ev-cost-month">0</span></p></div>
+                    <p class="text-5xl font-black text-center mb-6">฿<span id="ev-cost-km">0.00</span></p>
+                    <div class="grid grid-cols-2 pt-4 border-t border-blue-400/50 text-center">
+                        <div class="border-r border-blue-400/50"><p class="text-[9px] opacity-70 uppercase font-bold">ต่อวัน</p><p class="text-xl font-black">฿<span id="ev-cost-day">0</span></p></div>
+                        <div><p class="text-[9px] opacity-70 uppercase font-bold">ต่อเดือน</p><p class="text-xl font-black">฿<span id="ev-cost-month">0</span></p></div>
                     </div>
                 </div>
             </div>
 
+            <!-- House Content -->
             <div id="content-house" class="p-6 hidden space-y-4">
                 <div class="flex justify-between items-center">
-                    <h2 class="font-bold text-slate-800">เครื่องใช้ไฟฟ้า</h2>
-                    <button onclick="addAppliance()" class="text-blue-600 font-bold text-xs">+ เพิ่ม</button>
+                    <h2 class="font-bold text-slate-800">รายการใช้ไฟบ้าน</h2>
+                    <button onclick="addAppliance()" class="bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-lg text-xs">+ เพิ่มรายการ</button>
                 </div>
-                <div id="appliance-list" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
-                <div class="bg-slate-900 text-white p-5 rounded-2xl">
+                <div id="appliance-list" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
+                <div class="bg-slate-900 text-white p-6 rounded-3xl">
                     <div class="flex justify-between items-end">
-                        <div><p class="text-slate-400 text-[10px] font-bold">รวมทั้งเดือน</p><p class="text-xl font-bold"><span id="house-total-kwh">0</span> หน่วย</p></div>
-                        <div class="text-right"><p class="text-blue-400 text-[10px] font-bold">ค่าไฟประมาณการ</p><p class="text-3xl font-black">฿<span id="house-total-cost">0</span></p></div>
+                        <div><p class="text-slate-400 text-[10px] font-bold uppercase">ใช้ไฟรวม (30 วัน)</p><p class="text-2xl font-bold"><span id="house-total-kwh">0</span> หน่วย</p></div>
+                        <div class="text-right"><p class="text-blue-400 text-[10px] font-bold uppercase">ค่าไฟประมาณการ</p><p class="text-4xl font-black">฿<span id="house-total-cost">0</span></p></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Export Container (สำหรับการบันทึกภาพเท่านั้น) -->
     <div id="export-container">
-        <div style="text-align: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px;">
-            <h1 style="font-size: 24px; font-weight: 900; margin: 0;">Smart Energy Report</h1>
-            <p id="export-date" style="font-size: 10px; color: #64748b; margin: 5px 0 0 0;"></p>
+        <div style="text-align: center; border-bottom: 3px solid #f1f5f9; padding-bottom: 20px; margin-bottom: 25px;">
+            <h1 style="font-size: 28px; font-weight: 900; color: #0f172a; margin: 0;">SMART ENERGY REPORT</h1>
+            <p id="export-date" style="font-size: 12px; color: #64748b; margin-top: 5px;"></p>
         </div>
         
-        <div style="background: #0f172a; color: white; padding: 15px; border-radius: 15px; margin-bottom: 20px;">
-            <p style="font-size: 10px; color: #94a3b8; margin: 0;">อัตราค่าไฟฟ้าที่ใช้คำนวณ</p>
-            <p style="font-size: 20px; font-weight: 900; margin: 0;"><span id="ex-rate"></span> บาท/หน่วย</p>
+        <div style="background: #0f172a; color: white; padding: 20px; border-radius: 20px; margin-bottom: 25px;">
+            <p style="font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase; margin: 0;">อัตราค่าไฟฟ้า</p>
+            <p style="font-size: 32px; font-weight: 900; margin: 0;"><span id="ex-rate"></span> <span style="font-size: 16px; font-weight: normal; color: #3b82f6;">บาท/หน่วย</span></p>
         </div>
 
-        <div style="margin-bottom: 20px;">
-            <h3 style="font-size: 14px; font-weight: bold; color: #3b82f6; border-left: 4px solid #3b82f6; padding-left: 10px; margin-bottom: 10px;">ข้อมูลรถยนต์ไฟฟ้า (EV)</h3>
-            <div style="background: #f8fafc; padding: 15px; border-radius: 15px; border: 1px solid #e2e8f0;">
-                <p style="font-size: 10px; color: #64748b; margin: 0;">ประสิทธิภาพ: <span id="ex-ev-eff"></span> | ขับวันละ <span id="ex-ev-dist"></span> กม.</p>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                    <div><p style="font-size: 10px; color: #64748b; margin: 0;">ต้นทุนต่อกิโลเมตร</p><p style="font-size: 24px; font-weight: 900; color: #2563eb; margin: 0;">฿<span id="ex-ev-cost-km"></span></p></div>
-                    <div style="text-align: right;"><p style="font-size: 10px; color: #64748b; margin: 0;">รวมต่อเดือน</p><p style="font-size: 18px; font-weight: 900; margin: 0;">฿<span id="ex-ev-cost-month"></span></p></div>
+        <div style="margin-bottom: 25px;">
+            <h3 style="font-size: 16px; font-weight: 900; color: #2563eb; margin-bottom: 15px; text-transform: uppercase;">🚗 ข้อมูลรถยนต์ไฟฟ้า (EV)</h3>
+            <div style="background: #f8fafc; padding: 20px; border-radius: 20px; border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                    <div><p style="font-size: 10px; color: #64748b; margin: 0;">ประสิทธิภาพ</p><p style="font-size: 16px; font-weight: bold;"><span id="ex-ev-eff"></span></p></div>
+                    <div style="text-align: right;"><p style="font-size: 10px; color: #64748b; margin: 0;">ระยะทาง/วัน</p><p style="font-size: 16px; font-weight: bold;"><span id="ex-ev-dist"></span> กม.</p></div>
+                </div>
+                <div style="background: white; padding: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #f1f5f9;">
+                    <div><p style="font-size: 10px; color: #64748b; margin: 0;">ต้นทุนต่อกิโลเมตร</p><p style="font-size: 32px; font-weight: 900; color: #2563eb; margin: 0;">฿<span id="ex-ev-cost-km"></span></p></div>
+                    <div style="text-align: right;"><p style="font-size: 10px; color: #64748b; margin: 0;">เฉลี่ยต่อเดือน</p><p style="font-size: 20px; font-weight: 900; color: #0f172a; margin: 0;">฿<span id="ex-ev-cost-month"></span></p></div>
                 </div>
             </div>
         </div>
 
         <div id="export-house-section">
-            <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; border-left: 4px solid #0f172a; padding-left: 10px; margin-bottom: 10px;">สรุปค่าไฟบ้าน</h3>
-            <div id="ex-appliance-list" style="margin-bottom: 10px; font-size: 11px; color: #475569;"></div>
-            <div style="background: #0f172a; color: white; padding: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <div><p style="font-size: 10px; color: #94a3b8; margin: 0;">ใช้ไฟรวม</p><p style="font-size: 16px; font-weight: bold; margin: 0;"><span id="ex-house-kwh"></span> หน่วย</p></div>
-                <div style="text-align: right;"><p style="font-size: 10px; color: #3b82f6; margin: 0;">รวมค่าไฟบ้าน</p><p style="font-size: 22px; font-weight: 900; margin: 0;">฿<span id="ex-house-cost"></span></p></div>
+            <h3 style="font-size: 16px; font-weight: 900; color: #0f172a; margin-bottom: 15px; text-transform: uppercase;">🏠 รายละเอียดการใช้ไฟบ้าน</h3>
+            <div id="ex-appliance-list" style="margin-bottom: 15px; background: #fff; border: 1px solid #f1f5f9; border-radius: 15px; padding: 10px;"></div>
+            <div style="background: #0f172a; color: white; padding: 20px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div><p style="font-size: 10px; color: #94a3b8; margin: 0;">ใช้ไฟรวม</p><p style="font-size: 18px; font-weight: bold; margin: 0;"><span id="ex-house-kwh"></span> หน่วย</p></div>
+                <div style="text-align: right;"><p style="font-size: 10px; color: #3b82f6; margin: 0;">ค่าไฟรวม (30 วัน)</p><p style="font-size: 28px; font-weight: 900; margin: 0;">฿<span id="ex-house-cost"></span></p></div>
             </div>
         </div>
 
-        <div style="margin-top: 25px; text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
-            สรุปข้อมูลโดย Smart Energy Calc (GitHub Pages)
+        <div style="margin-top: 30px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 15px; font-weight: bold;">
+            GENERATED BY ENERGY-CALC.GITHUB.IO
         </div>
     </div>
 
-    <div id="loader" class="fixed inset-0 bg-black/70 hidden z-50 flex flex-col items-center justify-center text-white">
-        <div class="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent mb-4"></div>
-        <p class="font-bold">กำลังรวมข้อมูลและสร้างรูปภาพ...</p>
+    <!-- Loader -->
+    <div id="loader" class="fixed inset-0 bg-black/80 hidden z-50 flex flex-col items-center justify-center text-white">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
+        <p class="font-bold tracking-widest">สร้างรูปภาพรีพอร์ต...</p>
     </div>
 
     <script>
         let appliances = [
-            { id: 1, name: 'แอร์', watts: 1000, hours: 8, qty: 1 },
+            { id: 1, name: 'แอร์ (Inverter)', watts: 1000, hours: 8, qty: 1 },
             { id: 2, name: 'ตู้เย็น', watts: 150, hours: 24, qty: 1 }
         ];
 
@@ -181,11 +210,15 @@
         function renderAppliances() {
             const container = document.getElementById('appliance-list');
             container.innerHTML = appliances.map(app => `
-                <div class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-transparent hover:border-blue-200">
-                    <input type="text" value="${app.name}" oninput="updateApp(${app.id}, 'name', this.value)" class="flex-1 bg-transparent font-bold text-xs overflow-hidden">
-                    <input type="number" value="${app.watts}" oninput="updateApp(${app.id}, 'watts', this.value)" class="w-12 text-center text-xs font-bold bg-white border">
-                    <input type="number" value="${app.hours}" oninput="updateApp(${app.id}, 'hours', this.value)" class="w-8 text-center text-xs font-bold bg-white border">
-                    <button onclick="removeApp(${app.id})" class="text-red-400 px-1">✕</button>
+                <div class="flex items-center gap-2 bg-white border border-slate-100 p-3 rounded-2xl shadow-sm">
+                    <input type="text" value="${app.name}" oninput="updateApp(${app.id}, 'name', this.value)" class="flex-1 bg-transparent font-bold text-sm outline-none">
+                    <div class="flex items-center gap-1">
+                        <input type="number" value="${app.watts}" oninput="updateApp(${app.id}, 'watts', this.value)" class="w-14 text-center text-xs font-bold bg-slate-50 border rounded p-1">
+                        <span class="text-[9px] text-slate-400">W</span>
+                        <input type="number" value="${app.hours}" oninput="updateApp(${app.id}, 'hours', this.value)" class="w-10 text-center text-xs font-bold bg-slate-50 border rounded p-1">
+                        <span class="text-[9px] text-slate-400">H</span>
+                    </div>
+                    <button onclick="removeApp(${app.id})" class="text-red-300 hover:text-red-500 transition-colors ml-1">✕</button>
                 </div>
             `).join('');
         }
@@ -206,34 +239,36 @@
             const loader = document.getElementById('loader');
             loader.classList.remove('hidden');
 
-            // 1. อัปเดตข้อมูลลงใน Export Template
             const rate = document.getElementById('global-rate').value;
             const unit = document.getElementById('ev-unit-type').selectedOptions[0].text;
             
             document.getElementById('ex-rate').innerText = rate;
-            document.getElementById('export-date').innerText = "ข้อมูล ณ วันที่ " + new Date().toLocaleDateString('th-TH');
+            document.getElementById('export-date').innerText = "ข้อมูลวันที่ " + new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
             document.getElementById('ex-ev-eff').innerText = document.getElementById('ev-efficiency').value + " " + unit;
             document.getElementById('ex-ev-dist').innerText = document.getElementById('ev-distance').value;
             document.getElementById('ex-ev-cost-km').innerText = document.getElementById('ev-cost-km').innerText;
-            document.getElementById('ex-ev-cost-month').innerText = document.getElementById('ev-cost-month').innerText;
+            document.getElementById('ex-ev-cost-month').innerText = document.getElementById('ex-ev-cost-month').innerText;
             
             document.getElementById('ex-house-kwh').innerText = document.getElementById('house-total-kwh').innerText;
             document.getElementById('ex-house-cost').innerText = document.getElementById('house-total-cost').innerText;
 
-            const appListHtml = appliances.filter(a => a.watts > 0).map(a => 
-                `<div style="display:flex; justify-content:space-between; margin-bottom:4px; padding-bottom:4px; border-bottom:1px solid #f1f5f9;">
-                    <span>${a.name} (${a.watts}W x ${a.hours}ชม.)</span>
-                    <span style="font-weight:bold;">${Math.round((a.watts*a.hours*a.qty/1000)*30)} หน่วย</span>
+            const activeApps = appliances.filter(a => a.watts > 0);
+            const appListHtml = activeApps.map(a => 
+                `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:12px; padding-bottom:5px; border-bottom:1px solid #f8fafc;">
+                    <span style="color:#1e293b;">${a.name} (${a.watts}W × ${a.hours}ชม.)</span>
+                    <span style="font-weight:900; color:#2563eb;">${Math.round((a.watts*a.hours*a.qty/1000)*30)} หน่วย</span>
                 </div>`
             ).join('');
-            document.getElementById('ex-appliance-list').innerHTML = appListHtml || "ไม่มีรายการใช้ไฟบ้าน";
+            document.getElementById('ex-appliance-list').innerHTML = appListHtml || "<p style='text-align:center; color:#94a3b8; font-size:12px;'>ไม่มีรายการใช้ไฟบ้าน</p>";
 
-            // 2. ใช้ html2canvas จับภาพจาก Container ที่ซ่อนไว้
             try {
                 const canvas = await html2canvas(document.getElementById('export-container'), {
                     scale: 3,
                     useCORS: true,
-                    backgroundColor: '#ffffff'
+                    backgroundColor: '#ffffff',
+                    onclone: (clonedDoc) => {
+                        clonedDoc.getElementById('export-container').style.left = "0";
+                    }
                 });
                 
                 const link = document.createElement('a');
@@ -241,7 +276,7 @@
                 link.href = canvas.toDataURL('image/png', 1.0);
                 link.click();
             } catch (err) {
-                alert("ไม่สามารถบันทึกรูปภาพได้: " + err);
+                console.error(err);
             } finally {
                 loader.classList.add('hidden');
             }
@@ -251,6 +286,5 @@
     </script>
 </body>
 </html>
-
 
 ```
