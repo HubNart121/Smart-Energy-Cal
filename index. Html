@@ -1,0 +1,302 @@
+```html
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV & Home Electricity Calculator - Export</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- html2canvas library for image export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { font-family: 'Kanit', sans-serif; background-color: #f1f5f9; }
+        .card { background: white; border-radius: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .tab-active { 
+            border-bottom: 4px solid #2563eb; 
+            color: #2563eb; 
+            background-color: rgba(37, 99, 235, 0.05);
+        }
+        input[type="number"] { -moz-appearance: textfield; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        /* สไตล์สำหรับปุ่มดาวน์โหลด */
+        .btn-download {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
+        }
+    </style>
+</head>
+<body class="min-h-screen py-6 px-4">
+    <div class="max-w-3xl mx-auto">
+        <!-- Header Section -->
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+            <div class="text-center sm:text-left">
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Smart Energy Calc</h1>
+                <p class="text-slate-500 text-sm">คำนวณและแชร์ข้อมูลค่าใช้จ่ายพลังงาน</p>
+            </div>
+            <button onclick="downloadScreenshot()" class="btn-download text-white px-6 py-2.5 rounded-full font-bold flex items-center gap-2 transition-transform active:scale-95">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                บันทึกเป็นรูปภาพ
+            </button>
+        </div>
+
+        <!-- Capture Area (สิ่งที่ต้องการให้ติดในรูป) -->
+        <div id="capture-area" class="bg-white rounded-[1.25rem] border border-slate-200 overflow-hidden">
+            <!-- Tabs Navigation (Visible in app, may hide in screenshot if needed but usually better to show context) -->
+            <div class="flex border-b text-center no-screenshot">
+                <button onclick="switchTab('house')" id="tab-house" class="flex-1 py-5 font-bold transition-all duration-300 tab-active">
+                    🏠 รายการใช้ไฟบ้าน
+                </button>
+                <button onclick="switchTab('ev')" id="tab-ev" class="flex-1 py-5 font-bold text-slate-500 transition-all duration-300 hover:bg-slate-50">
+                    🚗 รถยนต์ไฟฟ้า
+                </button>
+            </div>
+
+            <!-- Configuration Zone -->
+            <div class="p-6 bg-slate-900 text-white">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="font-medium opacity-90 text-sm">อัตราค่าไฟฟ้าที่ใช้คำนวณ</h3>
+                        <div class="flex items-center gap-2 mt-1">
+                            <input type="number" id="global-rate" value="4.2" step="0.1" oninput="calculateAll()" class="bg-transparent text-3xl font-black w-24 outline-none border-b-2 border-blue-500 focus:border-white transition-colors">
+                            <span class="font-bold text-blue-400">บาท / หน่วย</span>
+                        </div>
+                    </div>
+                    <div class="text-right hidden sm:block">
+                        <div id="current-date" class="text-[10px] opacity-50 uppercase tracking-widest">Date</div>
+                        <div class="text-xs font-mono opacity-80">Energy Summary Report</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Home Tab Content -->
+            <div id="content-house" class="p-6 space-y-6">
+                <div class="flex justify-between items-center no-screenshot">
+                    <h2 class="text-xl font-bold text-slate-800">รายการใช้ไฟ</h2>
+                    <button onclick="addAppliance()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold transition-colors">
+                        + เพิ่มรายการ
+                    </button>
+                </div>
+
+                <div class="space-y-2" id="appliance-list">
+                    <!-- Dynamic List -->
+                </div>
+
+                <div class="mt-8 p-6 bg-blue-600 text-white rounded-2xl shadow-lg relative overflow-hidden">
+                    <div class="relative z-10 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div class="text-center sm:text-left">
+                            <p class="text-blue-100 text-xs font-bold uppercase tracking-wider mb-1">สรุปการใช้ไฟบ้าน (30 วัน)</p>
+                            <p class="text-4xl font-black"><span id="house-total-kwh">0</span> <small class="text-lg font-normal opacity-70">หน่วย</small></p>
+                        </div>
+                        <div class="text-center sm:text-right border-t sm:border-t-0 sm:border-l border-blue-400 pt-4 sm:pt-0 sm:pl-8">
+                            <p class="text-blue-100 text-xs font-bold uppercase tracking-wider mb-1">ค่าไฟประมาณการ</p>
+                            <p class="text-5xl font-black">฿<span id="house-total-cost">0</span></p>
+                        </div>
+                    </div>
+                    <!-- Background decoration -->
+                    <div class="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                </div>
+            </div>
+
+            <!-- EV Tab Content -->
+            <div id="content-ev" class="p-6 hidden space-y-8">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div class="space-y-4 no-screenshot">
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">ความจุแบตเตอรี่ (kWh)</label>
+                            <input type="number" id="ev-battery" value="60" oninput="calculateAll()" class="w-full text-lg font-bold bg-transparent outline-none">
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">กินไฟ (km/kWh)</label>
+                            <input type="number" id="ev-efficiency" value="7" oninput="calculateAll()" class="w-full text-lg font-bold bg-transparent outline-none">
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">ระยะที่ขับต่อวัน (กม.)</label>
+                            <input type="number" id="ev-distance" value="50" oninput="calculateAll()" class="w-full text-lg font-bold bg-transparent outline-none">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-4">
+                        <div class="bg-indigo-600 text-white p-6 rounded-2xl flex-1 flex flex-col justify-center text-center shadow-lg">
+                            <p class="text-indigo-200 font-bold uppercase tracking-wider text-[10px] mb-1">ต้นทุนพลังงาน</p>
+                            <div class="text-5xl font-black mb-1">฿<span id="ev-cost-km">0</span></div>
+                            <p class="text-indigo-200 text-sm italic">ต่อกิโลเมตร</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-100 p-4 rounded-xl text-center">
+                                <p class="text-[10px] text-slate-400 font-bold uppercase">ต่อวัน</p>
+                                <p class="font-black text-slate-800 text-xl">฿<span id="ev-cost-day">0</span></p>
+                            </div>
+                            <div class="bg-slate-100 p-4 rounded-xl text-center">
+                                <p class="text-[10px] text-slate-400 font-bold uppercase">ต่อเดือน</p>
+                                <p class="font-black text-slate-800 text-xl">฿<span id="ev-cost-month">0</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- EV Details for Screenshot -->
+                <div class="hidden block-screenshot border-t pt-4">
+                    <p class="text-xs text-slate-500 text-center">ข้อมูลคำนวณจาก: แบตเตอรี่ <span id="ss-ev-bat"></span> kWh | อัตราประหยัด <span id="ss-ev-eff"></span> km/kWh</p>
+                </div>
+            </div>
+            
+            <!-- Screenshot Footer -->
+            <div class="p-4 bg-slate-50 border-t flex justify-between items-center block-screenshot">
+                <span class="text-[10px] text-slate-400">Generated by Smart Energy Calc</span>
+                <span class="text-[10px] text-slate-400">github.io/energy-calc</span>
+            </div>
+        </div>
+
+        <p class="text-center text-slate-400 text-[10px] mt-6 no-screenshot">
+            *หมายเหตุ: ค่าใช้จ่ายเป็นการประมาณการ ไม่รวมค่า Ft และภาษีมูลค่าเพิ่ม
+        </p>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loading-modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-2xl shadow-xl text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="font-bold">กำลังสร้างรูปภาพ...</p>
+        </div>
+    </div>
+
+    <script>
+        let appliances = [
+            { id: 1, name: 'แอร์ 12,000 BTU', watts: 1000, hours: 8, qty: 1 },
+            { id: 2, name: 'ตู้เย็น', watts: 150, hours: 24, qty: 1 },
+            { id: 3, name: 'หลอดไฟ LED', watts: 12, hours: 6, qty: 10 }
+        ];
+
+        function switchTab(tab) {
+            const h = document.getElementById('content-house');
+            const e = document.getElementById('content-ev');
+            const th = document.getElementById('tab-house');
+            const te = document.getElementById('tab-ev');
+
+            if(tab === 'house') {
+                h.classList.remove('hidden'); e.classList.add('hidden');
+                th.classList.add('tab-active'); th.classList.remove('text-slate-500');
+                te.classList.remove('tab-active'); te.classList.add('text-slate-500');
+            } else {
+                h.classList.add('hidden'); e.classList.remove('hidden');
+                th.classList.remove('tab-active'); th.classList.add('text-slate-500');
+                te.classList.add('tab-active'); te.classList.remove('text-slate-500');
+            }
+        }
+
+        function addAppliance() {
+            appliances.push({ id: Date.now(), name: 'รายการใหม่', watts: 0, hours: 0, qty: 1 });
+            renderAppliances();
+            calculateAll();
+        }
+
+        function removeAppliance(id) {
+            appliances = appliances.filter(a => a.id !== id);
+            renderAppliances();
+            calculateAll();
+        }
+
+        function updateData(id, field, value) {
+            const item = appliances.find(a => a.id === id);
+            if(item) {
+                item[field] = field === 'name' ? value : (parseFloat(value) || 0);
+                calculateAll();
+            }
+        }
+
+        function renderAppliances() {
+            const container = document.getElementById('appliance-list');
+            container.innerHTML = appliances.map(app => `
+                <div class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-transparent hover:border-slate-200 transition-all">
+                    <input type="text" value="${app.name}" oninput="updateData(${app.id}, 'name', this.value)" class="flex-1 bg-transparent font-semibold text-slate-700 outline-none min-w-0">
+                    <div class="flex items-center gap-1 sm:gap-3 text-[10px]">
+                        <div class="text-center">
+                            <span class="block text-slate-400 font-bold uppercase">W</span>
+                            <input type="number" value="${app.watts}" oninput="updateData(${app.id}, 'watts', this.value)" class="w-12 bg-white rounded border border-slate-200 text-center font-bold">
+                        </div>
+                        <div class="text-center">
+                            <span class="block text-slate-400 font-bold uppercase">H</span>
+                            <input type="number" value="${app.hours}" oninput="updateData(${app.id}, 'hours', this.value)" class="w-10 bg-white rounded border border-slate-200 text-center font-bold">
+                        </div>
+                        <div class="text-center">
+                            <span class="block text-slate-400 font-bold uppercase">Qty</span>
+                            <input type="number" value="${app.qty}" oninput="updateData(${app.id}, 'qty', this.value)" class="w-10 bg-white rounded border border-slate-200 text-center font-bold">
+                        </div>
+                    </div>
+                    <button onclick="removeAppliance(${app.id})" class="text-slate-300 hover:text-red-500 no-screenshot ml-1">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function calculateAll() {
+            const rate = parseFloat(document.getElementById('global-rate').value) || 0;
+
+            // House calculation
+            let totalKwhMonth = 0;
+            appliances.forEach(a => {
+                totalKwhMonth += ((a.watts * a.hours * a.qty) / 1000) * 30;
+            });
+            document.getElementById('house-total-kwh').innerText = totalKwhMonth.toLocaleString(undefined, {maximumFractionDigits: 1});
+            document.getElementById('house-total-cost').innerText = (totalKwhMonth * rate).toLocaleString(undefined, {maximumFractionDigits: 0});
+
+            // EV calculation
+            const bat = parseFloat(document.getElementById('ev-battery').value) || 0;
+            const eff = parseFloat(document.getElementById('ev-efficiency').value) || 1;
+            const dist = parseFloat(document.getElementById('ev-distance').value) || 0;
+            const costPerKm = rate / eff;
+            
+            document.getElementById('ev-cost-km').innerText = costPerKm.toFixed(2);
+            document.getElementById('ev-cost-day').innerText = (dist * costPerKm).toLocaleString(undefined, {maximumFractionDigits: 0});
+            document.getElementById('ev-cost-month').innerText = (dist * costPerKm * 30).toLocaleString(undefined, {maximumFractionDigits: 0});
+
+            // Sync for Screenshot
+            document.getElementById('ss-ev-bat').innerText = bat;
+            document.getElementById('ss-ev-eff').innerText = eff;
+        }
+
+        function downloadScreenshot() {
+            const area = document.getElementById('capture-area');
+            const loader = document.getElementById('loading-modal');
+            
+            loader.classList.remove('hidden');
+            
+            // ซ่อนปุ่มที่ไม่ต้องการในรูป (ถ้ามี)
+            const noScreenshotElements = document.querySelectorAll('.no-screenshot');
+            noScreenshotElements.forEach(el => el.style.display = 'none');
+
+            html2canvas(area, {
+                scale: 2, // เพิ่มความชัด
+                backgroundColor: "#ffffff",
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                const link = document.createElement('a');
+                const timestamp = new Date().toISOString().slice(0,10);
+                link.download = `energy-report-${timestamp}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                // คืนค่าการแสดงผล
+                noScreenshotElements.forEach(el => el.style.display = '');
+                loader.classList.add('hidden');
+            }).catch(err => {
+                console.error('Error capturing image:', err);
+                loader.classList.add('hidden');
+                noScreenshotElements.forEach(el => el.style.display = '');
+            });
+        }
+
+        // Initialize
+        window.onload = () => {
+            document.getElementById('current-date').innerText = new Date().toLocaleDateString('th-TH', { 
+                day: 'numeric', month: 'long', year: 'numeric' 
+            });
+            renderAppliances();
+            calculateAll();
+        };
+    </script>
+</body>
+</html>
+
+```
